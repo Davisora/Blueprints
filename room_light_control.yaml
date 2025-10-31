@@ -1,0 +1,136 @@
+blueprint:
+  name: Room Light Control (Motion + Manual Modes)
+  description: >
+    Handles ON, OFF, and MOTION-based lighting for any room.
+    Supports configurable lights, motion sensors, and mode dropdown.
+  domain: automation
+  input:
+    room_lights:
+      name: Room Lights
+      description: Lights or switches to control.
+      selector:
+        target:
+          entity:
+            domain: light
+    motion_sensors:
+      name: Motion Sensors
+      description: One or more motion sensors for this room.
+      selector:
+        entity:
+          multiple: true
+          domain: binary_sensor
+          device_class: motion
+    mode_dropdown:
+      name: Room Mode Dropdown
+      description: Dropdown that defines ON, OFF, or MOTION timeout mode.
+      selector:
+        entity:
+          domain: input_select
+
+triggers:
+  - trigger: state
+    id: motion_trigger
+    entity_id: !input motion_sensors
+    from: "off"
+    to: "on"
+  - trigger: state
+    id: switch_on
+    entity_id: !input mode_dropdown
+    to: "ON"
+  - trigger: state
+    id: switch_off
+    entity_id: !input mode_dropdown
+    to: "OFF"
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: switch_on
+        sequence:
+          - action: light.turn_on
+            target: !input room_lights
+
+      - conditions:
+          - condition: trigger
+            id: switch_off
+        sequence:
+          - action: light.turn_off
+            target: !input room_lights
+
+      - conditions:
+          - condition: trigger
+            id: motion_trigger
+          - condition: template
+            value_template: >
+              {{ states(mode_dropdown) in [
+                'MOTION TEST 15 SEC',
+                'MOTION 5 MIN',
+                'MOTION 10 MIN',
+                'MOTION 30 MIN'
+              ] }}
+        sequence:
+          - action: light.turn_on
+            target: !input room_lights
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: !input mode_dropdown
+                    state: "MOTION TEST 15 SEC"
+                sequence:
+                  - wait_for_trigger:
+                      - trigger: state
+                        entity_id: !input motion_sensors
+                        from: "on"
+                        to: "off"
+                        for:
+                          seconds: 15
+                  - action: light.turn_off
+                    target: !input room_lights
+
+              - conditions:
+                  - condition: state
+                    entity_id: !input mode_dropdown
+                    state: "MOTION 5 MIN"
+                sequence:
+                  - wait_for_trigger:
+                      - trigger: state
+                        entity_id: !input motion_sensors
+                        from: "on"
+                        to: "off"
+                        for:
+                          minutes: 5
+                  - action: light.turn_off
+                    target: !input room_lights
+
+              - conditions:
+                  - condition: state
+                    entity_id: !input mode_dropdown
+                    state: "MOTION 10 MIN"
+                sequence:
+                  - wait_for_trigger:
+                      - trigger: state
+                        entity_id: !input motion_sensors
+                        from: "on"
+                        to: "off"
+                        for:
+                          minutes: 10
+                  - action: light.turn_off
+                    target: !input room_lights
+
+              - conditions:
+                  - condition: state
+                    entity_id: !input mode_dropdown
+                    state: "MOTION 30 MIN"
+                sequence:
+                  - wait_for_trigger:
+                      - trigger: state
+                        entity_id: !input motion_sensors
+                        from: "on"
+                        to: "off"
+                        for:
+                          minutes: 30
+                  - action: light.turn_off
+                    target: !input room_lights
+
+mode: restart
