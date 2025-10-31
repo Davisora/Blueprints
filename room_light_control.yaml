@@ -2,7 +2,7 @@ blueprint:
   name: Room Light Control (Motion + Manual Modes)
   description: >
     Handles ON, OFF, and MOTION-based lighting for any room.
-    Supports configurable lights, motion sensors, and mode dropdown.
+    Supports configurable lights, motion sensors, and a mode dropdown.
   domain: automation
   input:
     room_lights:
@@ -27,43 +27,59 @@ blueprint:
         entity:
           domain: input_select
 
+variables:
+  lights_target: !input room_lights
+  motion_entities: !input motion_sensors
+  status_dropdown: !input mode_dropdown
+
 triggers:
   - trigger: state
-    id: motion_trigger
+    id: MOTION
     entity_id: !input motion_sensors
     from: "off"
     to: "on"
+
   - trigger: state
-    id: switch_on
+    id: SWITCH_ON
     entity_id: !input mode_dropdown
     to: "ON"
+
   - trigger: state
-    id: switch_off
+    id: SWITCH_OFF
     entity_id: !input mode_dropdown
     to: "OFF"
 
 actions:
   - choose:
+      # =====================
+      # MANUAL ON MODE
+      # =====================
       - conditions:
           - condition: trigger
-            id: switch_on
+            id: SWITCH_ON
         sequence:
           - action: light.turn_on
             target: !input room_lights
 
+      # =====================
+      # MANUAL OFF MODE
+      # =====================
       - conditions:
           - condition: trigger
-            id: switch_off
+            id: SWITCH_OFF
         sequence:
           - action: light.turn_off
             target: !input room_lights
 
+      # =====================
+      # MOTION-BASED MODES
+      # =====================
       - conditions:
           - condition: trigger
-            id: motion_trigger
+            id: MOTION
           - condition: template
             value_template: >
-              {{ states(mode_dropdown) in [
+              {{ states(status_dropdown) in [
                 'MOTION TEST 15 SEC',
                 'MOTION 5 MIN',
                 'MOTION 10 MIN',
@@ -73,6 +89,7 @@ actions:
           - action: light.turn_on
             target: !input room_lights
           - choose:
+              # ---- MOTION TEST (15 SEC)
               - conditions:
                   - condition: state
                     entity_id: !input mode_dropdown
@@ -88,6 +105,7 @@ actions:
                   - action: light.turn_off
                     target: !input room_lights
 
+              # ---- MOTION 5 MIN
               - conditions:
                   - condition: state
                     entity_id: !input mode_dropdown
@@ -103,6 +121,7 @@ actions:
                   - action: light.turn_off
                     target: !input room_lights
 
+              # ---- MOTION 10 MIN
               - conditions:
                   - condition: state
                     entity_id: !input mode_dropdown
@@ -118,6 +137,7 @@ actions:
                   - action: light.turn_off
                     target: !input room_lights
 
+              # ---- MOTION 30 MIN
               - conditions:
                   - condition: state
                     entity_id: !input mode_dropdown
