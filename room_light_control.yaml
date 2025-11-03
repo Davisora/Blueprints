@@ -1,8 +1,8 @@
 blueprint:
   name: Room Light Control (Motion + Manual + Optional Hue)
   description: >
-    Controls room lights using motion sensors, an input_select dropdown for mode,
-    and optionally a Hue dimmer (via state or event-based approach).
+    Controls room lights using motion sensors, an input_select for ON/OFF/MOTION modes,
+    and optionally a Hue dimmer switch for manual control (on/off).
   domain: automation
   input:
     room_lights:
@@ -30,6 +30,14 @@ blueprint:
         entity:
           domain: input_select
 
+    hue_dimmer:
+      name: Hue Dimmer Switch (Optional)
+      description: Optional Hue dimmer switch for manual ON/OFF control.
+      default: null
+      selector:
+        device:
+          integration: hue
+
 triggers:
   - platform: state
     id: MOTION
@@ -47,6 +55,20 @@ triggers:
     entity_id: !input mode_dropdown
     to: "OFF"
 
+  - platform: device
+    device_id: !input hue_dimmer
+    domain: hue
+    type: initial_press
+    subtype: 1
+    id: BUTTON_ON
+
+  - platform: device
+    device_id: !input hue_dimmer
+    domain: hue
+    type: initial_press
+    subtype: 4
+    id: BUTTON_OFF
+
 variables:
   motion_entities: !input motion_sensors
   lights_target: !input room_lights
@@ -56,7 +78,9 @@ actions:
   - choose:
       - conditions:
           - condition: trigger
-            id: SWITCH_ON
+            id:
+              - SWITCH_ON
+              - BUTTON_ON
         sequence:
           - action: light.turn_on
             target: !input room_lights
@@ -69,7 +93,9 @@ actions:
 
       - conditions:
           - condition: trigger
-            id: SWITCH_OFF
+            id:
+              - SWITCH_OFF
+              - BUTTON_OFF
         sequence:
           - action: light.turn_off
             target: !input room_lights
