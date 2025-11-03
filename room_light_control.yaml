@@ -1,3 +1,4 @@
+blueprint:
 alias: Room Light Control (Motion + Manual Modes) V2
 description: >
   Unified automation that handles ON/OFF, motion lighting, and Hue dimmer switch
