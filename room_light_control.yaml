@@ -1,8 +1,8 @@
 blueprint:
-  name: Room Light Control (Motion + Manual Modes) V1 Branch
+  name: Room Light Control (Motion + Manual + Optional Hue)
   description: >
-    Handles ON, OFF, and MOTION-based lighting for any room.
-    Supports configurable lights, motion sensors, and mode dropdown.
+    Controls room lights using motion sensors, an input_select dropdown for mode,
+    and optionally a Hue dimmer (via state or event-based approach).
   domain: automation
   input:
     room_lights:
@@ -12,58 +12,80 @@ blueprint:
         target:
           entity:
             domain: light
+
     motion_sensors:
-      name: Motion Sensors
-      description: One or more motion sensors for this room.
+      name: Motion Sensors (Optional)
+      description: Motion sensors to trigger lighting. Leave empty if not used.
+      default: []
       selector:
         entity:
           multiple: true
           domain: binary_sensor
           device_class: motion
+
     mode_dropdown:
-      name: Room Mode Dropdown
-      description: Dropdown that defines ON, OFF, or MOTION timeout mode.
+      name: Mode Dropdown
+      description: Input select controlling light mode (ON, OFF, MOTION).
       selector:
         entity:
           domain: input_select
 
 triggers:
-  - trigger: state
-    id: motion_trigger
+  - platform: state
+    id: MOTION
     entity_id: !input motion_sensors
     from: "off"
     to: "on"
-  - trigger: state
-    id: switch_on
+
+  - platform: state
+    id: SWITCH_ON
     entity_id: !input mode_dropdown
     to: "ON"
-  - trigger: state
-    id: switch_off
+
+  - platform: state
+    id: SWITCH_OFF
     entity_id: !input mode_dropdown
     to: "OFF"
+
+variables:
+  motion_entities: !input motion_sensors
+  lights_target: !input room_lights
+  status_dropdown: !input mode_dropdown
 
 actions:
   - choose:
       - conditions:
           - condition: trigger
-            id: switch_on
+            id: SWITCH_ON
         sequence:
           - action: light.turn_on
             target: !input room_lights
+            data: {}
+          - action: input_select.select_option
+            target:
+              entity_id: !input mode_dropdown
+            data:
+              option: "ON"
 
       - conditions:
           - condition: trigger
-            id: switch_off
+            id: SWITCH_OFF
         sequence:
           - action: light.turn_off
             target: !input room_lights
+            data: {}
+          - action: input_select.select_option
+            target:
+              entity_id: !input mode_dropdown
+            data:
+              option: "OFF"
 
       - conditions:
           - condition: trigger
-            id: motion_trigger
+            id: MOTION
           - condition: template
             value_template: >
-              {{ states(mode_dropdown) in [
+              {{ states(status_dropdown) in [
                 'MOTION TEST 15 SEC',
                 'MOTION 5 MIN',
                 'MOTION 10 MIN',
@@ -72,14 +94,15 @@ actions:
         sequence:
           - action: light.turn_on
             target: !input room_lights
+            data: {}
           - choose:
               - conditions:
                   - condition: state
                     entity_id: !input mode_dropdown
-                    state: "MOTION TEST 15 SEC"
+                    state: MOTION TEST 15 SEC
                 sequence:
                   - wait_for_trigger:
-                      - trigger: state
+                      - platform: state
                         entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
@@ -87,14 +110,15 @@ actions:
                           seconds: 15
                   - action: light.turn_off
                     target: !input room_lights
+                    data: {}
 
               - conditions:
                   - condition: state
                     entity_id: !input mode_dropdown
-                    state: "MOTION 5 MIN"
+                    state: MOTION 5 MIN
                 sequence:
                   - wait_for_trigger:
-                      - trigger: state
+                      - platform: state
                         entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
@@ -102,14 +126,15 @@ actions:
                           minutes: 5
                   - action: light.turn_off
                     target: !input room_lights
+                    data: {}
 
               - conditions:
                   - condition: state
                     entity_id: !input mode_dropdown
-                    state: "MOTION 10 MIN"
+                    state: MOTION 10 MIN
                 sequence:
                   - wait_for_trigger:
-                      - trigger: state
+                      - platform: state
                         entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
@@ -117,14 +142,15 @@ actions:
                           minutes: 10
                   - action: light.turn_off
                     target: !input room_lights
+                    data: {}
 
               - conditions:
                   - condition: state
                     entity_id: !input mode_dropdown
-                    state: "MOTION 30 MIN"
+                    state: MOTION 30 MIN
                 sequence:
                   - wait_for_trigger:
-                      - trigger: state
+                      - platform: state
                         entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
@@ -132,5 +158,6 @@ actions:
                           minutes: 30
                   - action: light.turn_off
                     target: !input room_lights
+                    data: {}
 
 mode: restart
