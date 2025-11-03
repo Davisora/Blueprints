@@ -1,113 +1,69 @@
 blueprint:
-  name: Room Light Control (Motion + Manual Modes) V2
+  name: Room Light Control (Motion + Manual Modes)
   description: >
-    Unified automation that handles ON/OFF, motion lighting, and Hue dimmer switch
-    control for any room. Automatically controls lights in the same area as the automation.
+    Handles ON, OFF, and MOTION-based lighting for any room.
+    Supports configurable lights, motion sensors, and mode dropdown.
   domain: automation
-  author: Davisora
-  homeassistant:
-    min_version: 2024.8.0
   input:
-    # Optional: user can override automatic behavior
-    override_area:
-      name: Override Area
-      description: Optionally specify an area manually (leave blank to use automation area).
+    room_lights:
+      name: Room Lights
+      description: Lights or switches to control.
       selector:
-        area:
-
-mode: restart
-
-variables:
-  # Self-aware variables
-  room_area: "{{ iif(blueprint_inputs.override_area != None, blueprint_inputs.override_area, this.area_id) }}"
-  lights_target:
-    area_id: "{{ iif(blueprint_inputs.override_area != None, blueprint_inputs.override_area, this.area_id) }}"
-  motion_entities: >
-    {{ expand(area_entities(room_area))
-        | selectattr('domain', 'equalto', 'binary_sensor')
-        | selectattr('attributes.device_class', 'equalto', 'motion')
-        | map(attribute='entity_id') | list }}
-  status_dropdown: >
-    {{ expand(area_entities(room_area))
-        | selectattr('domain', 'equalto', 'input_select')
-        | selectattr('entity_id', 'search', 'light_status')
-        | map(attribute='entity_id') | first }}
+        target:
+          entity:
+            domain: light
+    motion_sensors:
+      name: Motion Sensors
+      description: One or more motion sensors for this room.
+      selector:
+        entity:
+          multiple: true
+          domain: binary_sensor
+          device_class: motion
+    mode_dropdown:
+      name: Room Mode Dropdown
+      description: Dropdown that defines ON, OFF, or MOTION timeout mode.
+      selector:
+        entity:
+          domain: input_select
 
 triggers:
-  # Motion trigger
   - trigger: state
-    id: MOTION
-    entity_id: "{{ motion_entities }}"
+    id: motion_trigger
+    entity_id: !input motion_sensors
     from: "off"
     to: "on"
-
-  # Dropdown ON / OFF triggers
   - trigger: state
-    id: SWITCH_ON
-    entity_id: "{{ status_dropdown }}"
+    id: switch_on
+    entity_id: !input mode_dropdown
     to: "ON"
   - trigger: state
-    id: SWITCH_OFF
-    entity_id: "{{ status_dropdown }}"
+    id: switch_off
+    entity_id: !input mode_dropdown
     to: "OFF"
-
-  # Hue switch triggers
-  - trigger: event
-    id: SWITCH_ON
-    event_type: hue_event
-    event_data:
-      type: initial_press
-      subtype: 1
-  - trigger: event
-    id: SWITCH_OFF
-    event_type: hue_event
-    event_data:
-      type: initial_press
-      subtype: 4
-
-  # Only respond to the Hue switch in this same area
-  - condition: template
-    value_template: >
-      {% set dev = device_id(trigger.event.data.device_id) %}
-      {{ area_id(dev) == room_area }}
 
 actions:
   - choose:
-      # --- Hue or Dropdown ON ---
       - conditions:
           - condition: trigger
-            id: SWITCH_ON
+            id: switch_on
         sequence:
-          - action: input_select.select_option
-            target:
-              entity_id: "{{ status_dropdown }}"
-            data:
-              option: "ON"
           - action: light.turn_on
-            target: "{{ lights_target }}"
-            data: {}
+            target: !input room_lights
 
-      # --- Hue or Dropdown OFF ---
       - conditions:
           - condition: trigger
-            id: SWITCH_OFF
+            id: switch_off
         sequence:
-          - action: input_select.select_option
-            target:
-              entity_id: "{{ status_dropdown }}"
-            data:
-              option: "OFF"
           - action: light.turn_off
-            target: "{{ lights_target }}"
-            data: {}
+            target: !input room_lights
 
-      # --- Motion Logic ---
       - conditions:
           - condition: trigger
-            id: MOTION
+            id: motion_trigger
           - condition: template
             value_template: >
-              {{ states(status_dropdown) in [
+              {{ states(mode_dropdown) in [
                 'MOTION TEST 15 SEC',
                 'MOTION 5 MIN',
                 'MOTION 10 MIN',
@@ -115,71 +71,66 @@ actions:
               ] }}
         sequence:
           - action: light.turn_on
-            target: "{{ lights_target }}"
-            data: {}
-
-          # Timeout variants
+            target: !input room_lights
           - choose:
               - conditions:
                   - condition: state
-                    entity_id: "{{ status_dropdown }}"
-                    state: MOTION TEST 15 SEC
+                    entity_id: !input mode_dropdown
+                    state: "MOTION TEST 15 SEC"
                 sequence:
                   - wait_for_trigger:
                       - trigger: state
-                        entity_id: "{{ motion_entities }}"
+                        entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
                         for:
                           seconds: 15
                   - action: light.turn_off
-                    target: "{{ lights_target }}"
-                    data: {}
+                    target: !input room_lights
 
               - conditions:
                   - condition: state
-                    entity_id: "{{ status_dropdown }}"
-                    state: MOTION 5 MIN
+                    entity_id: !input mode_dropdown
+                    state: "MOTION 5 MIN"
                 sequence:
                   - wait_for_trigger:
                       - trigger: state
-                        entity_id: "{{ motion_entities }}"
+                        entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
                         for:
                           minutes: 5
                   - action: light.turn_off
-                    target: "{{ lights_target }}"
-                    data: {}
+                    target: !input room_lights
 
               - conditions:
                   - condition: state
-                    entity_id: "{{ status_dropdown }}"
-                    state: MOTION 10 MIN
+                    entity_id: !input mode_dropdown
+                    state: "MOTION 10 MIN"
                 sequence:
                   - wait_for_trigger:
                       - trigger: state
-                        entity_id: "{{ motion_entities }}"
+                        entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
                         for:
                           minutes: 10
                   - action: light.turn_off
-                    target: "{{ lights_target }}"
-                    data: {}
+                    target: !input room_lights
 
               - conditions:
                   - condition: state
-                    entity_id: "{{ status_dropdown }}"
-                    state: MOTION 30 MIN
+                    entity_id: !input mode_dropdown
+                    state: "MOTION 30 MIN"
                 sequence:
                   - wait_for_trigger:
                       - trigger: state
-                        entity_id: "{{ motion_entities }}"
+                        entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
                         for:
                           minutes: 30
                   - action: light.turn_off
-                    target: "{{ lights_target }}"
-                    data: {}
+                    target: !input room_lights
+
+mode: restart
