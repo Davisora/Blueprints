@@ -1,20 +1,34 @@
 blueprint:
-alias: Room Light Control (Motion + Manual Modes) V2
-description: >
-  Unified automation that handles ON/OFF, motion lighting, and Hue dimmer switch
-  control for any room. Automatically controls lights in the same area as the automation.
+  name: Room Light Control (Motion + Manual Modes) V2
+  description: >
+    Unified automation that handles ON/OFF, motion lighting, and Hue dimmer switch
+    control for any room. Automatically controls lights in the same area as the automation.
+  domain: automation
+  author: Davisora
+  homeassistant:
+    min_version: 2024.8.0
+  input:
+    # Optional: user can override automatic behavior
+    override_area:
+      name: Override Area
+      description: Optionally specify an area manually (leave blank to use automation area).
+      selector:
+        area:
+
+mode: restart
+
 variables:
   # Self-aware variables
-  room_area: "{{ this.area_id }}"
+  room_area: "{{ iif(blueprint_inputs.override_area != None, blueprint_inputs.override_area, this.area_id) }}"
   lights_target:
-    area_id: "{{ this.area_id }}"
+    area_id: "{{ iif(blueprint_inputs.override_area != None, blueprint_inputs.override_area, this.area_id) }}"
   motion_entities: >
-    {{ expand(area_entities(this.area_id))
+    {{ expand(area_entities(room_area))
         | selectattr('domain', 'equalto', 'binary_sensor')
         | selectattr('attributes.device_class', 'equalto', 'motion')
         | map(attribute='entity_id') | list }}
   status_dropdown: >
-    {{ expand(area_entities(this.area_id))
+    {{ expand(area_entities(room_area))
         | selectattr('domain', 'equalto', 'input_select')
         | selectattr('entity_id', 'search', 'light_status')
         | map(attribute='entity_id') | first }}
@@ -50,11 +64,12 @@ triggers:
     event_data:
       type: initial_press
       subtype: 4
+
   # Only respond to the Hue switch in this same area
   - condition: template
     value_template: >
       {% set dev = device_id(trigger.event.data.device_id) %}
-      {{ area_id(dev) == this.area_id }}
+      {{ area_id(dev) == room_area }}
 
 actions:
   - choose:
@@ -168,5 +183,3 @@ actions:
                   - action: light.turn_off
                     target: "{{ lights_target }}"
                     data: {}
-
-mode: restart
