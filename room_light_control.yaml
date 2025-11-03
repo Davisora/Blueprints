@@ -119,7 +119,8 @@ actions:
             id: motion_trigger
           - condition: template
             value_template: >
-              {{ states(!input mode_dropdown) in [
+              {% set mode = states[inputs.mode_dropdown] %}
+              {{ mode in [
                 'MOTION TEST 15 SEC',
                 'MOTION 5 MIN',
                 'MOTION 10 MIN',
