@@ -1,5 +1,5 @@
 blueprint:
-  name: Room Light Control (Motion + Manual Modes)
+  name: Room Light Control (Motion + Manual Modes) V1 Branch
   description: >
     Handles ON, OFF, and MOTION-based lighting for any room.
     Supports configurable lights, motion sensors, and mode dropdown.
