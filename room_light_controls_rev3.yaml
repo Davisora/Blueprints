@@ -10,6 +10,7 @@ blueprint:
       description: Area where lights will be controlled
       selector:
         area: {}
+
     motion_sensors:
       name: Motion Sensors
       description: List of binary motion sensors
@@ -18,33 +19,37 @@ blueprint:
           multiple: true
           domain: binary_sensor
           device_class: motion
+
     status_dropdown:
       name: Status Dropdown
       description: input_select entity that controls light mode (ON, OFF, or MOTION)
       selector:
         entity:
           domain: input_select
+
     button_on:
       name: ON Button or Input Button
+      optional: true
       selector:
         entity:
           domain: input_button
           multiple: true
-          optional: true
+
     button_off:
       name: OFF Button or Input Button
+      optional: true
       selector:
         entity:
           domain: input_button
           multiple: true
-          optional: true
+
     button_motion_toggle:
       name: Motion Toggle Button
+      optional: true
       selector:
         entity:
           domain: input_button
           multiple: true
-          optional: true
 
 mode: restart
 variables:
