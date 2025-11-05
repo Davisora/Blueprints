@@ -1,8 +1,8 @@
 blueprint:
-  name: Room Light Control (Motion + Manual Modes)
+  name: Room Light Control (Motion + Manual + Hue Switch)
   description: >
-    Controls room lighting with both motion sensors and manual switches. 
-    Supports multiple motion durations and manual overrides.
+    Controls lights using motion sensors, manual buttons, and optionally a Hue dimmer switch.
+    Supports motion durations (15s, 5min, 10min, 30min) and manual ON/OFF overrides.
   domain: automation
   input:
     light_target:
@@ -23,7 +23,7 @@ blueprint:
 
     status_dropdown:
       name: Light Mode Selector
-      description: Input select controlling the mode (ON, OFF, MOTION, etc.).
+      description: Input select controlling the mode (ON, OFF, MOTION TEST 15 SEC, etc.).
       selector:
         entity:
           domain: input_select
@@ -55,15 +55,23 @@ blueprint:
           domain: input_button
           multiple: true
 
+    hue_switch:
+      name: Hue Dimmer Switch
+      description: Optional Hue switch device to control lights (press 1=ON, 4=OFF, long press 3=toggle motion duration).
+      default: []
+      selector:
+        device:
+          integration: hue
+
 triggers:
-  # Motion Detected
+  # --- Motion ---
   - trigger: state
     id: MOTION
     entity_id: !input motion_sensors
     from: "off"
     to: "on"
 
-  # Manual Buttons
+  # --- Manual Input Buttons ---
   - trigger: state
     id: SWITCH_ON
     entity_id: !input button_on
@@ -74,7 +82,27 @@ triggers:
     id: BUTTON_MOTION
     entity_id: !input button_motion
 
-  # Input Select Changes
+  # --- Hue Switch Buttons ---
+  - trigger: device
+    id: SWITCH_ON
+    device_id: !input hue_switch
+    domain: hue
+    type: initial_press
+    subtype: 1
+  - trigger: device
+    id: SWITCH_OFF
+    device_id: !input hue_switch
+    domain: hue
+    type: initial_press
+    subtype: 4
+  - trigger: device
+    id: BUTTON_MOTION_10MIN
+    device_id: !input hue_switch
+    domain: hue
+    type: long_release
+    subtype: 3
+
+  # --- Input Select Change (manual control) ---
   - trigger: state
     id: SWITCH_ON
     entity_id: !input status_dropdown
@@ -86,7 +114,7 @@ triggers:
 
 actions:
   - choose:
-      # --- Turn ON manually ---
+      # --- Turn ON ---
       - conditions:
           - condition: trigger
             id: SWITCH_ON
@@ -99,7 +127,7 @@ actions:
             data:
               option: "ON"
 
-      # --- Turn OFF manually ---
+      # --- Turn OFF ---
       - conditions:
           - condition: trigger
             id: SWITCH_OFF
@@ -142,6 +170,7 @@ actions:
                           seconds: 15
                   - action: light.turn_off
                     target: !input light_target
+
               - conditions:
                   - condition: state
                     entity_id: !input status_dropdown
@@ -156,6 +185,7 @@ actions:
                           minutes: 5
                   - action: light.turn_off
                     target: !input light_target
+
               - conditions:
                   - condition: state
                     entity_id: !input status_dropdown
@@ -170,6 +200,7 @@ actions:
                           minutes: 10
                   - action: light.turn_off
                     target: !input light_target
+
               - conditions:
                   - condition: state
                     entity_id: !input status_dropdown
@@ -185,10 +216,12 @@ actions:
                   - action: light.turn_off
                     target: !input light_target
 
-      # --- Toggle Motion Duration via Button ---
+      # --- Motion Mode Toggle via Hue or Button ---
       - conditions:
           - condition: trigger
-            id: BUTTON_MOTION
+            id:
+              - BUTTON_MOTION
+              - BUTTON_MOTION_10MIN
         sequence:
           - if:
               - condition: state
