@@ -1,140 +1,118 @@
 blueprint:
   name: Room Light Control (Motion + Manual Modes)
   description: >
-    Control lights in a room with motion, manual switches, or buttons.
-    Supports an input_select for mode selection (manual or motion modes).
+    Controls room lighting with both motion sensors and manual switches. 
+    Supports multiple motion durations and manual overrides.
   domain: automation
   input:
-    target_area:
-      name: Target area
-      description: Area or specific light entities to control
+    light_target:
+      name: Lights
+      description: The light(s) or area to control.
       selector:
         target:
           entity:
             domain: light
 
     motion_sensors:
-      name: (Optional) Motion sensors
-      description: Binary sensors that trigger motion-based lighting
-      default: []
+      name: Motion Sensors
+      description: Motion sensors that trigger the lights.
       selector:
         entity:
           domain: binary_sensor
-          device_class: motion
           multiple: true
 
     status_dropdown:
-      name: Mode selector (input_select)
-      description: Input select used to define ON/OFF or motion modes
+      name: Light Mode Selector
+      description: Input select controlling the mode (ON, OFF, MOTION, etc.).
       selector:
         entity:
           domain: input_select
 
     button_on:
-      name: (Optional) Button - ON
-      description: Button or device trigger for turning lights ON
+      name: Manual On Button
+      description: Optional input button to turn lights ON.
       default: []
       selector:
-        device: {}
+        entity:
+          domain: input_button
+          multiple: true
 
     button_off:
-      name: (Optional) Button - OFF
-      description: Button or device trigger for turning lights OFF
+      name: Manual Off Button
+      description: Optional input button to turn lights OFF.
       default: []
       selector:
-        device: {}
+        entity:
+          domain: input_button
+          multiple: true
 
-    motion_off_delay:
-      name: Motion Off Delay (seconds)
-      description: Default delay after motion stops (used if no dropdown mode delay)
-      default: 300
+    button_motion:
+      name: Motion Mode Button
+      description: Optional input button to toggle motion mode durations.
+      default: []
       selector:
-        number:
-          min: 5
-          max: 3600
-          unit_of_measurement: seconds
-          mode: slider
-
-mode: restart
-max_exceeded: silent
+        entity:
+          domain: input_button
+          multiple: true
 
 triggers:
-  # Motion Trigger
-  - alias: Motion detected
-    trigger: state
+  # Motion Detected
+  - trigger: state
+    id: MOTION
     entity_id: !input motion_sensors
     from: "off"
     to: "on"
-    id: MOTION
 
-  # Input select ON
-  - alias: Mode changed to ON
-    trigger: state
+  # Manual Buttons
+  - trigger: state
+    id: SWITCH_ON
+    entity_id: !input button_on
+  - trigger: state
+    id: SWITCH_OFF
+    entity_id: !input button_off
+  - trigger: state
+    id: BUTTON_MOTION
+    entity_id: !input button_motion
+
+  # Input Select Changes
+  - trigger: state
+    id: SWITCH_ON
     entity_id: !input status_dropdown
     to: "ON"
-    id: SWITCH_ON
-
-  # Input select OFF
-  - alias: Mode changed to OFF
-    trigger: state
+  - trigger: state
+    id: SWITCH_OFF
     entity_id: !input status_dropdown
     to: "OFF"
-    id: SWITCH_OFF
-
-  # Optional buttons (these will only register if device selected)
-  - alias: Button pressed - ON
-    trigger:
-      - platform: device
-        device_id: !input button_on
-        domain: hue
-        type: initial_press
-        subtype: 1
-    id: SWITCH_ON
-
-  - alias: Button pressed - OFF
-    trigger:
-      - platform: device
-        device_id: !input button_off
-        domain: hue
-        type: initial_press
-        subtype: 4
-    id: SWITCH_OFF
-
-variables:
-  lights_target: !input target_area
-  motion_entities: !input motion_sensors
-  status_dropdown: !input status_dropdown
-  motion_delay: !input motion_off_delay
 
 actions:
   - choose:
-      # ON Trigger
+      # --- Turn ON manually ---
       - conditions:
           - condition: trigger
             id: SWITCH_ON
         sequence:
           - action: light.turn_on
-            target: !input target_area
+            target: !input light_target
           - action: input_select.select_option
             target:
               entity_id: !input status_dropdown
             data:
               option: "ON"
 
-      # OFF Trigger
+      # --- Turn OFF manually ---
       - conditions:
           - condition: trigger
             id: SWITCH_OFF
         sequence:
           - action: light.turn_off
-            target: !input target_area
+            target: !input light_target
           - action: input_select.select_option
             target:
               entity_id: !input status_dropdown
             data:
               option: "OFF"
 
-      # Motion Trigger
+      # --- Motion Triggered ---
       - conditions:
           - condition: trigger
             id: MOTION
@@ -148,7 +126,7 @@ actions:
               ] }}
         sequence:
           - action: light.turn_on
-            target: !input target_area
+            target: !input light_target
           - choose:
               - conditions:
                   - condition: state
@@ -156,62 +134,77 @@ actions:
                     state: "MOTION TEST 15 SEC"
                 sequence:
                   - wait_for_trigger:
-                      - platform: state
+                      - trigger: state
                         entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
                         for:
                           seconds: 15
                   - action: light.turn_off
-                    target: !input target_area
-
+                    target: !input light_target
               - conditions:
                   - condition: state
                     entity_id: !input status_dropdown
                     state: "MOTION 5 MIN"
                 sequence:
                   - wait_for_trigger:
-                      - platform: state
+                      - trigger: state
                         entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
                         for:
                           minutes: 5
                   - action: light.turn_off
-                    target: !input target_area
-
+                    target: !input light_target
               - conditions:
                   - condition: state
                     entity_id: !input status_dropdown
                     state: "MOTION 10 MIN"
                 sequence:
                   - wait_for_trigger:
-                      - platform: state
+                      - trigger: state
                         entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
                         for:
                           minutes: 10
                   - action: light.turn_off
-                    target: !input target_area
-
+                    target: !input light_target
               - conditions:
                   - condition: state
                     entity_id: !input status_dropdown
                     state: "MOTION 30 MIN"
                 sequence:
                   - wait_for_trigger:
-                      - platform: state
+                      - trigger: state
                         entity_id: !input motion_sensors
                         from: "on"
                         to: "off"
                         for:
                           minutes: 30
                   - action: light.turn_off
-                    target: !input target_area
+                    target: !input light_target
 
-          # Default case — no motion mode active but motion detected
-          - default:
-              - delay: "{{ motion_delay | int }}"
-              - action: light.turn_off
-                target: !input target_area
+      # --- Toggle Motion Duration via Button ---
+      - conditions:
+          - condition: trigger
+            id: BUTTON_MOTION
+        sequence:
+          - if:
+              - condition: state
+                entity_id: !input status_dropdown
+                state: "MOTION 10 MIN"
+            then:
+              - action: input_select.select_option
+                target:
+                  entity_id: !input status_dropdown
+                data:
+                  option: "MOTION 30 MIN"
+            else:
+              - action: input_select.select_option
+                target:
+                  entity_id: !input status_dropdown
+                data:
+                  option: "MOTION 10 MIN"
+
+mode: restart
