@@ -4,6 +4,7 @@ blueprint:
     Controls lights using motion sensors, manual buttons, and optionally a Hue dimmer switch.
     Supports motion durations (15s, 5min, 10min, 30min) and manual ON/OFF overrides.
   domain: automation
+
   input:
     light_target:
       name: Lights
@@ -57,11 +58,12 @@ blueprint:
 
     hue_switch:
       name: Hue Dimmer Switch
-      description: Optional Hue switch device to control lights (press 1=ON, 4=OFF, long press 3=toggle motion duration).
+      description: >
+        Optional Hue dimmer switch device to control lights.
+        (Button 1 = ON, Button 4 = OFF, long press Button 3 = toggle motion mode)
       default: []
       selector:
-        device:
-          integration: hue
+        device: {}
 
 triggers:
   # --- Motion ---
@@ -144,14 +146,20 @@ actions:
       - conditions:
           - condition: trigger
             id: MOTION
-          - condition: template
-            value_template: >
-              {{ states(status_dropdown) in [
-                'MOTION TEST 15 SEC',
-                'MOTION 5 MIN',
-                'MOTION 10 MIN',
-                'MOTION 30 MIN'
-              ] }}
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: !input status_dropdown
+                state: "MOTION TEST 15 SEC"
+              - condition: state
+                entity_id: !input status_dropdown
+                state: "MOTION 5 MIN"
+              - condition: state
+                entity_id: !input status_dropdown
+                state: "MOTION 10 MIN"
+              - condition: state
+                entity_id: !input status_dropdown
+                state: "MOTION 30 MIN"
         sequence:
           - action: light.turn_on
             target: !input light_target
