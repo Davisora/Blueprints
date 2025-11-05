@@ -1,0 +1,201 @@
+blueprint:
+  name: Room Light Control (Motion + Manual Modes)
+  description: >
+    A motion and manual control light automation. Allows setting ON, OFF, or MOTION modes
+    via dropdown or button, and supports various motion timeouts.
+  domain: automation
+  input:
+    area_target:
+      name: Light Area
+      description: Area where lights will be controlled
+      selector:
+        area: {}
+    motion_sensors:
+      name: Motion Sensors
+      description: List of binary motion sensors
+      selector:
+        entity:
+          multiple: true
+          domain: binary_sensor
+          device_class: motion
+    status_dropdown:
+      name: Status Dropdown
+      description: input_select entity that controls light mode (ON, OFF, or MOTION)
+      selector:
+        entity:
+          domain: input_select
+    button_on:
+      name: ON Button or Input Button
+      selector:
+        entity:
+          domain: input_button
+          multiple: true
+          optional: true
+    button_off:
+      name: OFF Button or Input Button
+      selector:
+        entity:
+          domain: input_button
+          multiple: true
+          optional: true
+    button_motion_toggle:
+      name: Motion Toggle Button
+      selector:
+        entity:
+          domain: input_button
+          multiple: true
+          optional: true
+
+mode: restart
+variables:
+  status_dropdown: !input status_dropdown
+
+trigger:
+  - platform: state
+    entity_id: !input motion_sensors
+    from: "off"
+    to: "on"
+    id: MOTION
+  - platform: state
+    entity_id: !input status_dropdown
+    to: "ON"
+    id: SWITCH_ON
+  - platform: state
+    entity_id: !input status_dropdown
+    to: "OFF"
+    id: SWITCH_OFF
+  - platform: state
+    entity_id: !input button_on
+    id: SWITCH_ON
+  - platform: state
+    entity_id: !input button_off
+    id: SWITCH_OFF
+  - platform: state
+    entity_id: !input button_motion_toggle
+    id: BUTTON_MOTION
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: SWITCH_ON
+        sequence:
+          - service: light.turn_on
+            target:
+              area_id: !input area_target
+          - service: input_select.select_option
+            target:
+              entity_id: !input status_dropdown
+            data:
+              option: "ON"
+
+      - conditions:
+          - condition: trigger
+            id: SWITCH_OFF
+        sequence:
+          - service: light.turn_off
+            target:
+              area_id: !input area_target
+          - service: input_select.select_option
+            target:
+              entity_id: !input status_dropdown
+            data:
+              option: "OFF"
+
+      - conditions:
+          - condition: trigger
+            id: MOTION
+          - condition: template
+            value_template: >
+              {{ states(status_dropdown) in [
+                'MOTION TEST 15 SEC',
+                'MOTION 5 MIN',
+                'MOTION 10 MIN',
+                'MOTION 30 MIN'
+              ] }}
+        sequence:
+          - service: light.turn_on
+            target:
+              area_id: !input area_target
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: !input status_dropdown
+                    state: "MOTION TEST 15 SEC"
+                sequence:
+                  - wait_for_trigger:
+                      - platform: state
+                        entity_id: !input motion_sensors
+                        from: "on"
+                        to: "off"
+                        for:
+                          seconds: 15
+                  - service: light.turn_off
+                    target:
+                      area_id: !input area_target
+              - conditions:
+                  - condition: state
+                    entity_id: !input status_dropdown
+                    state: "MOTION 5 MIN"
+                sequence:
+                  - wait_for_trigger:
+                      - platform: state
+                        entity_id: !input motion_sensors
+                        from: "on"
+                        to: "off"
+                        for:
+                          minutes: 5
+                  - service: light.turn_off
+                    target:
+                      area_id: !input area_target
+              - conditions:
+                  - condition: state
+                    entity_id: !input status_dropdown
+                    state: "MOTION 10 MIN"
+                sequence:
+                  - wait_for_trigger:
+                      - platform: state
+                        entity_id: !input motion_sensors
+                        from: "on"
+                        to: "off"
+                        for:
+                          minutes: 10
+                  - service: light.turn_off
+                    target:
+                      area_id: !input area_target
+              - conditions:
+                  - condition: state
+                    entity_id: !input status_dropdown
+                    state: "MOTION 30 MIN"
+                sequence:
+                  - wait_for_trigger:
+                      - platform: state
+                        entity_id: !input motion_sensors
+                        from: "on"
+                        to: "off"
+                        for:
+                          minutes: 30
+                  - service: light.turn_off
+                    target:
+                      area_id: !input area_target
+
+      - conditions:
+          - condition: trigger
+            id: BUTTON_MOTION
+        sequence:
+          - if:
+              - condition: state
+                entity_id: !input status_dropdown
+                state: "MOTION 10 MIN"
+            then:
+              - service: input_select.select_option
+                target:
+                  entity_id: !input status_dropdown
+                data:
+                  option: "MOTION 30 MIN"
+            else:
+              - service: input_select.select_option
+                target:
+                  entity_id: !input status_dropdown
+                data:
+                  option: "MOTION 10 MIN"
