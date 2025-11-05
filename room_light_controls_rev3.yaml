@@ -29,6 +29,7 @@ blueprint:
 
     button_on:
       name: ON Button or Input Button
+      description: Optional ON button
       optional: true
       selector:
         entity:
@@ -37,6 +38,7 @@ blueprint:
 
     button_off:
       name: OFF Button or Input Button
+      description: Optional OFF button
       optional: true
       selector:
         entity:
@@ -45,6 +47,7 @@ blueprint:
 
     button_motion_toggle:
       name: Motion Toggle Button
+      description: Optional motion toggle button
       optional: true
       selector:
         entity:
