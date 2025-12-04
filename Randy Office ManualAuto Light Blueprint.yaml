@@ -202,8 +202,6 @@ actions:
                   - action: timer.start
                     target:
                       entity_id: !input timer_entity
-                    data:
-                      duration: "00:15:00"
 
               - conditions:
                   - condition: trigger
@@ -215,8 +213,6 @@ actions:
                   - action: timer.start
                     target:
                       entity_id: !input timer_entity
-                    data:
-                      duration: "00:15:00"
 
               - conditions:
                   - condition: trigger
@@ -225,8 +221,6 @@ actions:
                   - action: timer.start
                     target:
                       entity_id: !input timer_entity
-                    data:
-                      duration: "00:15:00"
 
               - conditions:
                   - condition: trigger
