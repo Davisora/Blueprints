@@ -1,0 +1,227 @@
+blueprint:
+  name: Randy Office Master Light Control
+  description: Unified Manual Mode + Motion Mode (with fixed timer)
+  domain: automation
+  input:
+    light_entity:
+      name: Office Lights
+      default: light.randy_office_lights_all
+    timer_entity:
+      name: Office Timer
+      default: timer.randy_office_timer
+    status_select:
+      name: Mode Selector
+      default: input_select.randy_office_light_status
+    toggle_manual_button:
+      name: Toggle Manual Button (Hue)
+      default: 271e7c0c5173ecc74030b1e9ab0b3edc
+    on_manual_button:
+      name: On Manual Button (Hue)
+      default: 45a99f74aa8999e1754bb39d34d9f0a4
+    motion_sensors:
+      name: Motion Sensors
+      default:
+        - binary_sensor.motion_6
+        - binary_sensor.third_reality_inc_3rms16bz_5
+
+alias: Randy Office Master Light Control
+description: Unified Manual Mode + Motion Mode (with fixed timer)
+triggers:
+  - id: Toggle Manual
+    trigger: device
+    device_id: !input toggle_manual_button
+    domain: hue
+    type: initial_press
+    subtype: 1
+
+  - id: On Manual Button
+    trigger: device
+    device_id: !input on_manual_button
+    domain: hue
+    type: initial_press
+    subtype: 2
+
+  - id: Timer Start
+    trigger: state
+    entity_id: !input timer_entity
+    from: idle
+    to: active
+
+  - id: Timer Finish
+    trigger: state
+    entity_id: !input timer_entity
+    from: active
+    to: idle
+
+  - id: Light Turned On
+    trigger: state
+    entity_id: !input light_entity
+    from: "off"
+    to: "on"
+
+  - id: Light Turned Off
+    trigger: state
+    entity_id: !input light_entity
+    from: "on"
+    to: "off"
+
+  - id: Status Changed To Manual
+    trigger: state
+    entity_id: !input status_select
+    to: Manual Mode
+
+  - id: Auto Mode
+    trigger: state
+    entity_id: !input status_select
+    to: Auto Mode
+
+  - trigger: state
+    entity_id: !input motion_sensors
+    from:
+      - "off"
+    to:
+      - "on"
+    id: Motion Detected
+
+actions:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input status_select
+            state: Manual Mode
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: trigger
+                    id: Toggle Manual
+                sequence:
+                  - action: light.toggle
+                    target:
+                      entity_id: !input light_entity
+                  - action: timer.cancel
+                    target:
+                      entity_id: !input timer_entity
+              - conditions:
+                  - condition: trigger
+                    id: On Manual Button
+                sequence:
+                  - action: light.turn_on
+                    target:
+                      entity_id: !input light_entity
+                  - action: timer.cancel
+                    target:
+                      entity_id: !input timer_entity
+              - conditions:
+                  - condition: trigger
+                    id: Motion Detected
+                sequence: []
+              - conditions:
+                  - condition: trigger
+                    id:
+                      - Timer Start
+                      - Timer Finish
+                sequence: []
+              - conditions:
+                  - condition: trigger
+                    id:
+                      - Light Turned On
+                      - Light Turned Off
+                sequence: []
+              - conditions:
+                  - condition: state
+                    entity_id: !input status_select
+                    state: Manual Mode
+                  - condition: state
+                    entity_id: !input timer_entity
+                    state: active
+                sequence:
+                  - action: timer.cancel
+                    target:
+                      entity_id: !input timer_entity
+
+      - conditions:
+          - condition: state
+            entity_id: !input status_select
+            state: Auto Mode
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: trigger
+                    id: Toggle Manual
+                sequence:
+                  - action: light.toggle
+                    target:
+                      entity_id: !input light_entity
+                  - action: input_select.select_option
+                    target:
+                      entity_id: !input status_select
+                    data:
+                      option: Manual Mode
+                  - action: timer.cancel
+                    target:
+                      entity_id: !input timer_entity
+
+              - conditions:
+                  - condition: trigger
+                    id: On Manual Button
+                sequence:
+                  - action: light.turn_on
+                    target:
+                      entity_id: !input light_entity
+                  - action: timer.start
+                    target:
+                      entity_id: !input timer_entity
+                    data:
+                      duration: "00:15:00"
+
+              - conditions:
+                  - condition: trigger
+                    id: Motion Detected
+                sequence:
+                  - action: light.turn_on
+                    target:
+                      entity_id: !input light_entity
+                  - action: timer.start
+                    target:
+                      entity_id: !input timer_entity
+                    data:
+                      duration: "00:15:00"
+
+              - conditions:
+                  - condition: trigger
+                    id: Light Turned On
+                sequence:
+                  - action: timer.start
+                    target:
+                      entity_id: !input timer_entity
+                    data:
+                      duration: "00:15:00"
+
+              - conditions:
+                  - condition: trigger
+                    id: Timer Finish
+                sequence:
+                  - action: light.turn_off
+                    target:
+                      entity_id: !input light_entity
+
+              - conditions:
+                  - condition: trigger
+                    id:
+                      - Timer Start
+                      - Light Turned Off
+                sequence: []
+
+              - conditions:
+                  - condition: trigger
+                    id: Auto Mode
+                  - condition: state
+                    entity_id: !input light_entity
+                    state: "on"
+                sequence:
+                  - action: timer.start
+                    target:
+                      entity_id: !input timer_entity
+
+mode: queued
+max: 10
