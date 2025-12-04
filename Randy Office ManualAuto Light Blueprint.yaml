@@ -1,31 +1,58 @@
 blueprint:
   name: Randy Office Master Light Control
-  description: Unified Manual Mode + Motion Mode (with fixed timer)
+  description: >
+    Exact logic of the original Randy Office Master Light Control automation,
+    now converted into a blueprint with selectable inputs (dropdowns, device selectors, etc.).
   domain: automation
+
   input:
     light_entity:
       name: Office Lights
+      selector:
+        entity:
+          domain: light
       default: light.randy_office_lights_all
+
     timer_entity:
       name: Office Timer
+      selector:
+        entity:
+          domain: timer
       default: timer.randy_office_timer
+
     status_select:
       name: Mode Selector
+      selector:
+        entity:
+          domain: input_select
       default: input_select.randy_office_light_status
-    toggle_manual_button:
-      name: Toggle Manual Button (Hue)
-      default: 271e7c0c5173ecc74030b1e9ab0b3edc
-    on_manual_button:
-      name: On Manual Button (Hue)
-      default: 45a99f74aa8999e1754bb39d34d9f0a4
+
     motion_sensors:
       name: Motion Sensors
+      selector:
+        entity:
+          domain: binary_sensor
+          multiple: true
       default:
         - binary_sensor.motion_6
         - binary_sensor.third_reality_inc_3rms16bz_5
 
+    toggle_manual_button:
+      name: Toggle Manual Hue Switch
+      selector:
+        device: {}
+      default: 271e7c0c5173ecc74030b1e9ab0b3edc
+
+    on_manual_button:
+      name: Manual ON Hue Switch
+      selector:
+        device: {}
+      default: 45a99f74aa8999e1754bb39d34d9f0a4
+
+
 alias: Randy Office Master Light Control
 description: Unified Manual Mode + Motion Mode (with fixed timer)
+
 triggers:
   - id: Toggle Manual
     trigger: device
@@ -77,11 +104,10 @@ triggers:
 
   - trigger: state
     entity_id: !input motion_sensors
-    from:
-      - "off"
-    to:
-      - "on"
+    from: "off"
+    to: "on"
     id: Motion Detected
+
 
 actions:
   - choose:
@@ -101,6 +127,7 @@ actions:
                   - action: timer.cancel
                     target:
                       entity_id: !input timer_entity
+
               - conditions:
                   - condition: trigger
                     id: On Manual Button
@@ -111,22 +138,26 @@ actions:
                   - action: timer.cancel
                     target:
                       entity_id: !input timer_entity
+
               - conditions:
                   - condition: trigger
                     id: Motion Detected
                 sequence: []
+
               - conditions:
                   - condition: trigger
                     id:
                       - Timer Start
                       - Timer Finish
                 sequence: []
+
               - conditions:
                   - condition: trigger
                     id:
                       - Light Turned On
                       - Light Turned Off
                 sequence: []
+
               - conditions:
                   - condition: state
                     entity_id: !input status_select
@@ -222,6 +253,7 @@ actions:
                   - action: timer.start
                     target:
                       entity_id: !input timer_entity
+
 
 mode: queued
 max: 10
